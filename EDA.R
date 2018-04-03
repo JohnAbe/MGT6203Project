@@ -21,7 +21,9 @@ max_day_range = 360
 householdlist = tr_household_summarised[tr_household_summarised$min_day<=min_day_range & tr_household_summarised$max_day>=max_day_range,'household_key']
 length(householdlist)
 
-
+## Retain only transactions that fell in the range between min_day_range and max_day_range
+transaction_data <- transaction_data[transaction_data$DAY>=min_day_range & transaction_data$DAY<=max_day_range,]
+dim(transaction_data)
 ## Also have to add the retail_desc, coupon_disc etc..
 household_tot_sales <- as.data.frame(transaction_data[transaction_data$household_key %in% householdlist, ] %>% group_by(household_key) %>% summarise(total_sales_value = sum(SALES_VALUE)))
 
@@ -40,6 +42,7 @@ dim(household_tot_sales)[1]==length(unique(household_tot_sales$household_key))
 row.names(household_tot_sales) <- household_tot_sales$household_key
 head(household_tot_sales)
 household_tot_sales$household_key <- NULL
+# Looks like a numeric field  but is a factor
 household_tot_sales$HOUSEHOLD_SIZE_DESC <- factor(household_tot_sales$HOUSEHOLD_SIZE_DESC)
 mod1  <- lm(total_sales_value~.,household_tot_sales)
 summary(mod1)
@@ -58,3 +61,13 @@ for (name in names(household_tot_sales)){
   
 }
 
+
+library(rpart)
+mod3 <- rpart(total_sales_value~.,data=household_tot_sales)
+plot(mod3)
+text(mod3)
+
+
+# Linear regression model with interaction variables
+#mod4 <- lm(total_sales_value ~ INCOME_DESC*(AGE_DESC+HH_COMP_DESC), household_tot_sales)
+mod5 <- lm(total_sales_value ~., household_tot_sales)
