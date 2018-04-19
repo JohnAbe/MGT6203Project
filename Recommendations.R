@@ -1,9 +1,12 @@
 
 library(dplyr)
+library(tools)
 
 ## Given a list of <household_key, store_id, churn_week> return {household_key, [product_id_list]}
 
-trans <-read.csv( "/Users/johnabraham/Desktop/dunnhumby_The-Complete-Journey/dunnhumby - The Complete Journey CSV/transaction_data.csv")
+trans_data <-read.csv( "/Users/johnabraham/Desktop/dunnhumby_The-Complete-Journey/dunnhumby - The Complete Journey CSV/transaction_data.csv")
+product_list <- read.csv( "/Users/johnabraham/Desktop/dunnhumby_The-Complete-Journey/dunnhumby - The Complete Journey CSV/product.csv")
+
 
 ## Getting a sample of a dummy output from the model
 sample_model_output <-read.csv("/Users/johnabraham/Dropbox/MSARelated/Spring2018/MGT6203/ProjectRelated/final_data_use.csv")
@@ -11,7 +14,7 @@ sample_model_output <- sample_model_output[sample_model_output$if_churn==1,]
 sample_model_output <- sample_model_output[sample(1:dim(sample_model_output)[1],100),]
 # Now we have 100 rows with the expected output schema
 
-get_product_lists <- function(model_output, trans=trans, purchase_history_lookbac=10, top_n_products = 3){
+get_product_lists <- function(model_output, trans=trans_data, products=product_list, purchase_history_lookbac=10, top_n_products = 2){
   names(trans) <- tolower(names(trans))
   model_output["churn_week_no"] <- model_output["week_no"]
   model_output["week_no"] <- NULL
@@ -28,14 +31,24 @@ get_product_lists <- function(model_output, trans=trans, purchase_history_lookba
                                             summarize(tot_sales_value = sum(sales_value),tot_product_qty = sum(quantity)) %>% 
                                             mutate(rank_by_value=rank(-tot_sales_value, ties.method="max"), rank_by_qty=rank(-tot_product_qty, ties.method="max")))
   # return top n products by value or by quantity
-  household_top_products <- household_top_products[which((household_top_products$rank_by_value<=top_n_products) | (household_top_products$rank_by_qty<=top_n_products)),  ]
-  household_top_products_recommended <- as.data.frame(household_top_products %>% 
-                                              group_by(store_id, household_key) %>% 
-                                                summarise(reco_prod_by_value = paste(product_id, collapse="|"), reco_prod_by_qty= paste(product_id, collapse="|")))
+  #household_top_products <- household_top_products[which((household_top_products$rank_by_value<=top_n_products) | (household_top_products$rank_by_qty<=top_n_products)),  ]
+  # For now, only ranking by value
+  household_top_products <- household_top_products[which(household_top_products$rank_by_value<=top_n_products),]
+  # household_top_products_recommended <- as.data.frame(household_top_products %>% 
+  #                                             group_by(store_id, household_key) %>% 
+  #                                               summarise(reco_prod_by_value = paste(product_id, collapse="|"), reco_prod_by_qty= paste(product_id, collapse="|")))
   
-  return(household_top_products_recommended)
+  names(products) <- tolower(names(products))
+
+  household_reco_products <- merge(household_top_products[c("store_id","household_key","product_id")], products[c("product_id", "sub_commodity_desc")], by="product_id")
+  household_reco_products$prod_name <- toTitleCase(tolower(trimws(household_reco_products$sub_commodity_desc)))
+  household_reco_products <- as.data.frame(household_reco_products %>%
+                                             group_by(store_id, household_key) %>%
+                                             summarise(product_ids = paste(product_id, collapse="|"),
+                                                       product_names = paste(prod_name, collapse="|")))
+  return(household_reco_products)
 }
   
 
 # Try calling that function
-get_product_lists(sample_model_output, trans)
+head(get_product_lists(sample_model_output, trans, product_list))
