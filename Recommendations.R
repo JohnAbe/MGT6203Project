@@ -21,7 +21,6 @@ sample_model_output <- as.data.frame(sample_model_output %>% group_by(household_
 # Now we have rows with the expected output schema
 
 get_product_lists <- function(model_output, trans=trans_data, products=product_list, purchase_history_lookback=10, top_n_products = 5){
-  print(length(unique(model_output$household_key)))
   names(trans) <- tolower(names(trans))
   model_output["churn_week_no"] <- model_output["week_no"]
   model_output["week_no"] <- NULL
@@ -33,10 +32,10 @@ get_product_lists <- function(model_output, trans=trans_data, products=product_l
   # ties.method for rank by qty is "max" is because many products might just be bought once by customer
   # there might not be a clear favourite in that case and we do not want to enforce one.
   # Value based ranking is more likely to be unique but chosen max because it better than default  - "average" which gives non-integral ranks
-  print(length(unique(joined$household_key)))
+  # Only retaining cases where a household_key purchases at least 3 quantity - to avoid products like say, a costly Television or Vacuum cleaner
   household_top_products <- as.data.frame(joined %>% 
                                             group_by(store_id, household_key, product_id) %>% 
-                                            summarize(tot_sales_value = sum(sales_value),tot_product_qty = sum(quantity)) %>% 
+                                            summarize(tot_sales_value = sum(sales_value),tot_product_qty = sum(quantity)) %>% filter(tot_product_qty>2) %>%
                                             mutate(rank_by_value=rank(-tot_sales_value, ties.method="max"), rank_by_qty=rank(-tot_product_qty, ties.method="max")))
   # return top n products by value or by quantity
   #household_top_products <- household_top_products[which((household_top_products$rank_by_value<=top_n_products) | (household_top_products$rank_by_qty<=top_n_products)),  ]
@@ -48,7 +47,6 @@ get_product_lists <- function(model_output, trans=trans_data, products=product_l
   
   # Allowing two kinds of output - one at household_key, store_id, product_id vs household_key, store_id, product_id list, product_name list
   # Make T to F to toggle between output types
-  print(length(unique(joined$household_key)))
     if(T){
     household_top_products['recommendation_rank'] <- household_top_products['rank_by_value']
     return(household_top_products[c('store_id','household_key','recommendation_rank','product_id')])    
@@ -87,9 +85,10 @@ get_future_products <- function(model_output, trans=trans_data, purchase_lookahe
   # ties.method for rank by qty is "max" is because many products might just be bought once by customer
   # there might not be a clear favourite in that case and we do not want to enforce one.
   # Value based ranking is more likely to be unique but chosen max because it better than default  - "average" which gives non-integral ranks
+  # Only retaining cases where a household_key purchases at least 3 quantity - to avoid products like say, a costly Television or Vacuum cleaner
   household_top_products <- as.data.frame(joined %>% 
                                             group_by(store_id, household_key, product_id) %>% 
-                                            summarize(tot_sales_value = sum(sales_value),tot_product_qty = sum(quantity)) %>% 
+                                            summarize(tot_sales_value = sum(sales_value),tot_product_qty = sum(quantity)) %>% filter(tot_product_qty>2) %>%
                                             mutate(rank_by_value=rank(-tot_sales_value, ties.method="max"), rank_by_qty=rank(-tot_product_qty, ties.method="max")))
   # return top n products by value or by quantity
   #household_top_products <- household_top_products[which((household_top_products$rank_by_value<=top_n_products) | (household_top_products$rank_by_qty<=top_n_products)),  ]
