@@ -140,5 +140,5 @@ evaluate_recommendations(data_output, get_future_products(sample_model_output, t
 evaluate_recommendations(recommendation_augmented_output, get_future_products(sample_model_output, trans_data, purchase_lookahead = 20), match_level = 1)
 
 
-evaluate_recommendations(data_output, get_future_products(sample_model_output, trans_data, purchase_lookahead = 20),match_level = 2)
-evaluate_recommendations(recommendation_augmented_output, get_future_products(sample_model_output, trans_data, purchase_lookahead = 20), match_level = 2)
+evaluate_recommendations(data_output,future_data_output,match_level = 2)
+evaluate_recommendations(recommendation_augmented_output, future_data_output, match_level = 2)
