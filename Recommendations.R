@@ -73,15 +73,16 @@ write.csv(data_output,file=paste(processed_files_path,"/recommendation_output.cs
 
 
 ### Function to get the top n purchases by value if the customer returned in the next 10 weeks after being predicted to be a churn.
-get_future_products <- function(model_output, trans=trans_data, purchase_lookahead=10, top_n_products = 5){
+# churn_noshop_duration is the no. of weeks the customer does not shop
+get_future_products <- function(model_output, trans=trans_data, purchase_lookahead=10, top_n_products = 5, churn_noshop_duration=2){
   names(trans) <- tolower(names(trans))
   model_output["churn_week_no"] <- model_output["week_no"]
   model_output["week_no"] <- NULL
   joined <- merge(model_output[c("household_key", "store_id", "churn_week_no")], trans, by=c("household_key", "store_id"))
   
   # Retaining data between churn week and (churn week+purchase_lookahead) week
-  joined <- joined[joined$week_no<=joined$churn_week_no+purchase_lookahead,]
-  joined <- joined[joined$week_no>(joined$churn_week_no),]
+  joined <- joined[joined$week_no<=joined$churn_week_no+purchase_lookahead+churn_noshop_duration,]
+  joined <- joined[joined$week_no>=(joined$churn_week_no+churn_noshop_duration),]
   # ties.method for rank by qty is "max" is because many products might just be bought once by customer
   # there might not be a clear favourite in that case and we do not want to enforce one.
   # Value based ranking is more likely to be unique but chosen max because it better than default  - "average" which gives non-integral ranks
@@ -131,14 +132,40 @@ evaluate_recommendations <- function(recommendations, future_purchase, match_lev
 recommendation_augmented_output <- read.csv(paste(processed_files_path,"/recommendation_augmented_output.csv",sep=""))
 
 
-
-evaluate_recommendations(data_output,future_data_output)
-evaluate_recommendations(recommendation_augmented_output,future_data_output)
-
-
-evaluate_recommendations(data_output, get_future_products(sample_model_output, trans_data, purchase_lookahead = 20),match_level = 1)
-evaluate_recommendations(recommendation_augmented_output, get_future_products(sample_model_output, trans_data, purchase_lookahead = 20), match_level = 1)
+#evaluate_recommendations(data_output,future_data_output)
+#evaluate_recommendations(recommendation_augmented_output,future_data_output)
 
 
-evaluate_recommendations(data_output,future_data_output,match_level = 2)
-evaluate_recommendations(recommendation_augmented_output, future_data_output, match_level = 2)
+#evaluate_recommendations(data_output, get_future_products(sample_model_output, trans_data, purchase_lookahead = 20),match_level = 1)
+#evaluate_recommendations(recommendation_augmented_output, get_future_products(sample_model_output, trans_data, purchase_lookahead = 20), match_level = 1)
+
+
+#evaluate_recommendations(data_output,future_data_output,match_level = 2)
+#evaluate_recommendations(recommendation_augmented_output, future_data_output, match_level = 2)
+
+
+## Evaluate reco perf
+evaluation <- function(data_output,recommendation_augmented_output, future_data_output, match_range=c(1,2,3)){
+  matches = c()
+  return_customers = c()
+  churn_customers = c()
+  type = c()
+  match = c()  
+  for(m in match_range){
+    output = evaluate_recommendations(data_output, future_data_output, match_level = m)
+    match = c(match,m)
+    type =c(type,"History")
+    matches = c(matches,output[1])
+    return_customers = c(return_customers,output[2])
+    churn_customers = c(churn_customers, output[3])
+    output = evaluate_recommendations(recommendation_augmented_output, future_data_output, match_level = m)
+    match = c(match,m)
+    type =c(type,"History+CF")
+    matches = c(matches,output[1])
+    return_customers = c(return_customers,output[2])
+    churn_customers = c(churn_customers, output[3])
+  }
+  return(data.frame(Match_Level = match, Recommendation_Type=type, Customer_Matches=matches,Return_Customers = return_customers, Overall_Customers=churn_customers))
+}
+
+evaluation(data_output, recommendation_augmented_output, future_data_output, match_range = c(1,2,3,4))
