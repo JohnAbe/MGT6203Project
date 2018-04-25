@@ -10,5 +10,5 @@ There are 4 codes overall:
     input: takes the data prepared from churn-prediction
     output: recommendation list of past-purchased products that the customer is likely to buy
 4. RecommenderCollaborative.ipynb:
-    input: takes the data prepared from churn-prediction
-    output: recommendation list based on collaborative filtering
+    input: Takes the history based product recommendations made by Recommendations.R
+    output: Appends collaborative filtering based products (n CF based products that meet a threshold t, n,t - being parameters) to each original product in the list
